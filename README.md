@@ -1,167 +1,226 @@
-# Multiome Processing Pipeline (scRNA + scATAC)
+# Multiome and Xenium Processing Pipeline
 
 **Author**: Stella Wroblewski
-**Date**: 03/04/2025
+**Date**: 07/23/2025  
 
 ## Overview
 
-This repository provides a generalized pipeline for processing 10x multiome data (simultaneous single-cell RNA sequencing and single-cell ATAC sequencing). The code in `multiome_pipeline_publish_ready.R` demonstrates how to load, filter, normalize, integrate, and analyze multiome datasets, enabling downstream analyses such as dimensional reduction, clustering, annotation, differential expression (RNA), and differential accessibility (ATAC).
+This repository contains an R pipeline for processing 10x Genomics Multiome (scRNA + scATAC) and Xenium spatial transcriptomics data. The pipeline performs quality control, normalization, dimensionality reduction, clustering, and multimodal integration using Seurat and Signac.
 
 ## Key Features
-1. **Modular Design**: The pipeline is organized into sections, making it easy to modify or reuse specific functions.
-2. **Seurat + Signac**: Uses Seurat (for scRNA) and Signac (for scATAC) to handle multi-modal single-cell data.
-3. **Customizable QC Steps**: Allows user-defined thresholds for basic quality control on RNA and ATAC data.
-4. **Integration Methods**: Demonstrates how to integrate data with Harmony and Weighted Nearest Neighbors (WNN).
-5. **Cell Type Annotation**: Provides templates for sc-type, SingleR, or other annotation approaches.
-6. **Differential Expression/Accessibility**: Shows example workflows for discovering DE genes/peaks.
-7. **Flexible**: You can adjust the genome, annotation database, and thresholds for your specific organism or experiment.
+
+1. **Dual Processing**: Handles both Multiome (RNA + ATAC) and Xenium spatial data
+2. **Memory Management**: Configurable settings for processing large datasets
+3. **Quality Control**: Modality-specific QC thresholds for RNA, ATAC, and spatial data
+4. **Integration Methods**: Weighted Nearest Neighbors (WNN) for multimodal data integration
+5. **Export Formats**: Outputs h5ad files for Python compatibility
+6. **Organism Support**: Works with mouse and human data
 
 ## Repository Contents
 
-- **multiome_pipeline_publish_ready.R**
-  - A script containing:
-    - **`process_sample()`** function: A custom function to read, filter, and process scRNA + scATAC from a single 10x multiome sample.
-    - Example usage for multiple samples: how to load data from multiple samples, integrate them, and run downstream analyses.
-    - Sections on QC, dimensional reduction, integration (Harmony + WNN), differential expression, and visualization.
+- **`multiome_xenium_pipeline.R`**
+  - Main pipeline script with:
+    - User configuration section
+    - Automated package installation
+    - Processing functions for each modality
+    - Integration workflows
+    - Visualization and export utilities
 
-- **README.md**
-  - The document you are reading now, describing how to set up and run the pipeline, including key dependencies.
+- **`README.md`**
+  - This documentation file
 
 ## Getting Started
 
-### 1. Dependencies and Installation
+### 1. System Requirements
 
-This pipeline heavily relies on the following R packages:
+- R version ≥ 4.0.0
+- 16GB RAM minimum (32GB recommended)
+- 10GB free disk space per sample
+- 4+ CPU cores recommended
 
-- **[Seurat](https://satijalab.org/seurat/)** (v4+ recommended)
-- **[Signac](https://stuartlab.org/signac/)** (for scATAC)
-- **[Harmony](https://github.com/immunogenomics/harmony)** (for data integration)
-- **[dplyr](https://dplyr.tidyverse.org/)** (data manipulation)
-- **[patchwork](https://patchwork.data-imaginist.com/)** (plot arrangement)
-- **[EnsDb.Mmusculus.v79](https://bioconductor.org/packages/release/data/annotation/html/EnsDb.Mmusculus.v79.html)** (mouse annotation database; modify if working with another organism)
-- **[hdf5r](https://cran.r-project.org/web/packages/hdf5r/index.html)** (for reading 10x .h5 files)
+### 2. Dependencies
 
-Additionally, you may find these packages useful:
-- **[ggplot2](https://ggplot2.tidyverse.org/)** (data visualization)
-- **[clusterProfiler](https://yulab-smu.top/clusterProfiler-book/)**, **[ReactomePA](https://www.bioconductor.org/packages/release/bioc/html/ReactomePA.html)**, **[org.Mm.eg.db](https://bioconductor.org/packages/org.Mm.eg.db/)** (for enrichment analyses)
-- **[openxlsx](https://cran.r-project.org/web/packages/openxlsx/index.html)**, **[HGNChelper](https://cran.r-project.org/web/packages/HGNChelper/index.html)**, etc.
+The pipeline will automatically install required packages:
 
-Make sure to install all packages before running the pipeline:
-```r
-install.packages("devtools")
-install.packages("remotes")
-# Example for installing Signac
-remotes::install_github("timoast/signac")
-# Install Harmony
-remotes::install_github("immunogenomics/harmony")
-# For Bioconductor packages
-if(!requireNamespace("BiocManager", quietly=TRUE)) install.packages("BiocManager")
-BiocManager::install("EnsDb.Mmusculus.v79")
-BiocManager::install("org.Mm.eg.db")
-BiocManager::install("ReactomePA")
-# etc.
-```
+**Core Packages:**
+- Seurat (v4+)
+- Signac
+- SeuratDisk
+- Matrix, future
 
-### 2. Data Requirements
+**Visualization:**
+- ggplot2, patchwork, viridis, RColorBrewer
 
-1. **10x HDF5 File** (`.h5`): Typically named `filtered_feature_bc_matrix.h5`.
-2. **ATAC Fragments File** (`.tsv.gz`): Contains chromatin accessibility info.
-3. **Annotation**: Provided via an EnsDb database or other annotation resource suitable for your organism.
+**Bioconductor:**
+- EnsDb.Mmusculus.v79 (mouse) or EnsDb.Hsapiens.v86 (human)
+- BSgenome packages
 
-### 3. Usage Instructions
+### 3. Input Data Requirements
 
-1. **Clone or download** the repository.
-2. **Open `multiome_pipeline_publish_ready.R`** in R or RStudio.
-3. **Set file paths**:
-   - Replace the placeholder `file_paths` and `frag_files` with paths to your own data.
-   - Keep a consistent naming scheme in `sample_ids` to facilitate merging.
-4. **Run the `process_sample()`** function for each sample, producing a list of Seurat objects.
-5. **Integration** (optional but recommended if you have multiple samples or batches):
-   - Use SCT, Harmony, or WNN integration as described.
-6. **Cell Type Annotation**: Insert your method of choice (sc-type, SingleR, or manual marker-based annotation).
-7. **Differential Expression / Accessibility**: Adjust groupings and run `FindMarkers()` to identify features that differ between conditions.
-8. **Visualization**: Generate UMAPs, FeaturePlots, DotPlots, heatmaps, or your own specialized visualizations.
+#### Multiome Data
+- `.h5` file: 10x filtered feature matrix
+- `.tsv.gz` file: ATAC fragments (must be indexed with .tbi)
+- `.bed` file: Peak calls (optional)
 
-### 4. Pipeline Outline
+#### Xenium Data  
+- `cell_feature_matrix.h5`: Expression matrix
+- `cells.csv.gz`: Cell metadata with spatial coordinates
 
-1. **Data Ingestion**
-   - Read HDF5 with `Read10X_h5()`
-   - Create RNA and ATAC assays
-2. **Quality Control**
-   - Filter cells by `nCount_RNA`, `nCount_ATAC`, and `% mitochondrial reads`
-3. **Normalization & Dimensional Reduction**
-   - RNA: `SCTransform`, `RunPCA`, `RunUMAP`
-   - ATAC: `RunTFIDF`, `RunSVD`, `RunUMAP`
-4. **Merging & Integration** (Optional)
-   - Merge objects, run Harmony (batch correction), Weighted Nearest Neighbor (multi-modal integration)
-5. **Downstream Analysis**
-   - Find clusters, cell-type annotation, differential expression/accessibility
-6. **Visualization**
-   - Plot UMAP projections, gene expression patterns, etc.
+### 4. Configuration
 
-### 5. Tips & Best Practices
-
-1. **Parameter Tuning**: QC thresholds are data dependent; experiment with them.
-2. **Annotation Sources**: Always double-check your annotation (e.g., for human vs. mouse) and convert gene IDs where needed.
-3. **Storage & Memory**: Multiome data can be large. Consider HPC or cloud resources if running into memory constraints.
-4. **Version Control**: Keep track of package versions using a lock file or environment manager (e.g., `renv`).
-
-### 6. Example Code Snippet
-
-Below is a minimal example to show how you might set up your environment:
+Edit the configuration section at the top of the script:
 
 ```r
-# Step 1: Load libraries
-library(Seurat)
-library(Signac)
-library(EnsDb.Mmusculus.v79)
-
-# Step 2: Define your file paths
-file_paths <- list(
-  sample1 = "~/path/to/sample1_filtered_feature_bc_matrix.h5",
-  sample2 = "~/path/to/sample2_filtered_feature_bc_matrix.h5"
-)
-frag_files <- list(
-  sample1 = "~/path/to/sample1_atac_fragments.tsv.gz",
-  sample2 = "~/path/to/sample2_atac_fragments.tsv.gz"
-)
-sample_ids <- names(file_paths)
-
-# Step 3: Process each sample
-raw_samples <- mapply(
-  FUN = process_sample,
-  file_path = file_paths,
-  frag_file = frag_files,
-  sample_id = sample_ids,
-  SIMPLIFY = FALSE
+# Set input file paths
+INPUT_CONFIG <- list(
+  multiome_rna_h5 = "path/to/sample.h5",
+  multiome_atac_fragments = "path/to/fragments.tsv.gz",
+  xenium_matrix_h5 = "path/to/cell_feature_matrix.h5",
+  xenium_cells_csv = "path/to/cells.csv.gz",
+  sample_name = "my_sample",
+  organism = "mouse"  # or "human"
 )
 
-# Step 4 (optional): Integrate multiple samples
-# ... SCT, Harmony, or WNN steps ...
+# Adjust memory settings
+MEMORY_CONFIG <- list(
+  max_cores = 4,
+  max_memory_gb = 32,
+  save_intermediates = TRUE,
+  downsample_plots = TRUE,
+  max_cells_plot = 20000
+)
 
-# Step 5: Analyze, visualize, etc.
-
+# Set QC thresholds
+QC_CONFIG <- list(
+  rna = list(
+    min_features = 200,
+    max_features = 10000,
+    max_mt_percent = 20
+  ),
+  atac = list(
+    min_fragments = 1000,
+    max_fragments = 100000,
+    tss_enrichment_min = 2
+  ),
+  xenium = list(
+    min_features = 100,
+    max_features = 5000
+  )
+)
 ```
 
-### 7. Known Issues or Caveats
+### 5. Running the Pipeline
 
-- **Large Datasets**: Processing very large datasets may require more memory or HPC resources.
-- **Organism-Specific**: The script uses mouse (`EnsDb.Mmusculus.v79`) by default. For other organisms, change the database or remove the annotation block.
-- **Paths & Filenames**: The function `process_sample()` expects 10x `.h5` files with `Gene Expression` and `Peaks` keys, plus the corresponding `.tsv.gz` fragments.
+```bash
+# Run the pipeline
+Rscript multiome_xenium_pipeline.R
 
-### 8. References
+# Monitor progress
+tail -f processed_data/preprocessing_log.txt
+```
 
-- [Seurat v4](https://satijalab.org/seurat/)
+## Pipeline Workflow
+
+### 1. RNA Processing (Multiome)
+- Load 10x h5 file
+- Calculate QC metrics (% mitochondrial, % ribosomal)
+- Filter cells based on QC thresholds
+- Normalize data (log normalization)
+- Find variable features (2000 genes)
+- Scale data, run PCA
+- Run UMAP and find clusters
+
+### 2. ATAC Processing (Multiome)
+- Load fragment files
+- Create genomic bins
+- Calculate ATAC QC metrics (TSS enrichment, nucleosome signal)
+- Filter cells
+- Run TF-IDF normalization
+- Perform LSI dimensionality reduction
+- Run UMAP and find clusters
+
+### 3. Multimodal Integration
+- Find cells present in both RNA and ATAC
+- Run WNN integration
+- Generate integrated UMAP
+- Find multimodal clusters
+- Calculate modality weights
+
+### 4. Xenium Processing
+- Load expression matrix and spatial coordinates
+- Calculate QC metrics
+- Filter cells
+- Standard scRNA-seq workflow (normalize, scale, PCA, UMAP)
+- Generate spatial visualizations
+
+### 5. Output Generation
+- Save Seurat objects (.rds files)
+- Export to h5ad format
+- Generate QC plots and UMAPs
+- Save cluster markers
+- Create processing summary
+
+## Output Structure
+
+```
+processed_data/
+├── figures/              # QC plots, UMAPs, spatial plots
+├── qc/                   # Metrics CSVs, marker genes
+├── objects/              # Seurat objects (if save_intermediates=TRUE)
+├── h5ad/                 # Python-compatible files
+└── preprocessing_log.txt # Detailed log with timestamps
+```
+
+## Key Functions
+
+**`log_message()`**: Logs messages with timestamps to console and file
+
+**`save_qc_metrics()`**: Exports cell metadata and QC metrics to CSV
+
+**`create_qc_plots()`**: Generates violin plots for QC metrics
+
+**`save_plot()`**: Saves plots with consistent settings
+
+**`convert_to_h5ad()`**: Converts Seurat objects to h5ad format
+
+## Troubleshooting
+
+### Memory Issues
+- Reduce `max_cores` in MEMORY_CONFIG
+- Set `save_intermediates = TRUE` to save progress
+- Process samples individually
+
+### File Not Found
+- Use absolute paths in INPUT_CONFIG
+- Ensure fragment files have .tbi index
+- Check file permissions
+
+### Package Installation
+- Run `BiocManager::install()` for Bioconductor packages
+- Check R version compatibility
+- Install system dependencies (hdf5, etc.)
+
+## Example Usage
+
+```r
+# Process a mouse Multiome + Xenium dataset
+INPUT_CONFIG <- list(
+  multiome_rna_h5 = "/data/multiome/filtered_feature_bc_matrix.h5",
+  multiome_atac_fragments = "/data/multiome/atac_fragments.tsv.gz",
+  xenium_matrix_h5 = "/data/xenium/cell_feature_matrix.h5",
+  xenium_cells_csv = "/data/xenium/cells.csv.gz",
+  sample_name = "mouse_brain_001",
+  organism = "mouse"
+)
+
+# Run pipeline
+source("multiome_xenium_pipeline.R")
+```
+
+## References
+
+- [Seurat](https://satijalab.org/seurat/)
 - [Signac](https://stuartlab.org/signac/)
-- [Harmony Integration](https://github.com/immunogenomics/harmony)
-- [sc-type](https://github.com/IanevskiAleksandr/sc-type)
-- [SingleR](https://bioconductor.org/packages/SingleR)
-
-### 9. Contact
-
-For questions, bug reports, or improvements, please open an issue or contact Stella Wroblewski at swroblewski@tulane.edu.
-
----
-
-**Enjoy your single-cell multiome analysis!**
+- [10x Genomics Multiome](https://www.10xgenomics.com/products/single-cell-multiome-atac-plus-gene-expression)
+- [10x Genomics Xenium](https://www.10xgenomics.com/platforms/xenium)
 
